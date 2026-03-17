@@ -112,7 +112,7 @@
   </style>
 </head>
 
-<body class="h-screen w-screen flex flex-col items-center justify-center crt relative" oncontextmenu="return false;">
+<body class="fixed inset-0 w-full h-full flex flex-col items-center justify-center crt bg-black" oncontextmenu="return false;">
 
   <!-- 全画面フラッシュ用オーバレイ -->
   <div id="flash-overlay" class="absolute inset-0 z-40 pointer-events-none transition-colors duration-300"></div>
@@ -135,10 +135,10 @@
       <div id="view-start" class="flex flex-col items-center text-center w-full h-full relative justify-center">
         <img src="assets/title.png" alt="Title" class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none" />
         <div class="relative z-10 flex flex-col items-center">
-          <h1 class="text-7xl font-bold neon-red mb-2 tracking-tighter drop-shadow-lg">NULL</h1>
-          <h2 class="text-2xl neon-blue mb-16 tracking-widest drop-shadow-md">OVERRIDE_SYNC</h2>
+          <h1 class="text-6xl sm:text-7xl font-bold neon-red mb-2 tracking-tighter drop-shadow-lg whitespace-nowrap">NULL</h1>
+          <h2 class="text-xl sm:text-2xl neon-blue mb-16 tracking-widest drop-shadow-md whitespace-nowrap">OVERRIDE_SYNC</h2>
           <button
-            class="px-8 py-3 border border-[#00f3ff] text-[#00f3ff] hover:bg-[#00f3ff] hover:text-black transition-all duration-300 neon-blue animate-pulse mt-8 font-bold text-xl tracking-wider shadow-[0_0_15px_#00f3ff] backdrop-blur-sm bg-black/30">
+            class="px-6 py-3 border border-[#00f3ff] text-[#00f3ff] hover:bg-[#00f3ff] hover:text-black transition-all duration-300 neon-blue animate-pulse mt-8 font-bold text-lg sm:text-xl tracking-wider shadow-[0_0_15px_#00f3ff] backdrop-blur-sm bg-black/30 whitespace-nowrap">
             [ INITIATE_SYNC ]
           </button>
         </div>
@@ -156,8 +156,7 @@
         <!-- 中央の合図文字 -->
         <div id="signal-text" class="relative z-20 flex items-center justify-center w-full h-full">
           <span
-            class="text-4xl md:text-5xl text-gray-600 opacity-50 tracking-widest animate-pulse font-bold bg-black/60 px-6 py-2 rounded shadow-lg">[
-            STANDBY... ]</span>
+            class="text-3xl sm:text-4xl md:text-5xl text-gray-600 opacity-50 tracking-widest animate-pulse font-bold bg-black/60 px-4 sm:px-6 py-2 rounded shadow-lg whitespace-nowrap">[ STANDBY... ]</span>
         </div>
       </div>
 
@@ -203,6 +202,30 @@
     let currentLevel = 1;
     let goTime = 0;
     let timers = [];
+    let audioUnlocked = false;
+
+    // 初回タップ時の音声事前読み込み（ラグ対策）
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      Object.values(SE).forEach(a => {
+        a.volume = 0;
+        let p = a.play();
+        if (p !== undefined) { 
+          p.catch(() => {}).then(() => { 
+            a.pause(); 
+            a.currentTime = 0; 
+          }); 
+        }
+      });
+      // 一定時間後に本来のボリュームに戻す
+      setTimeout(() => {
+        SE.alert.volume = 0.9;
+        SE.fake.volume = 0.5;
+        SE.slash.volume = 0.8;
+        SE.error.volume = 0.8;
+      }, 100);
+      audioUnlocked = true;
+    }
 
     const LEVEL_CONFIGS = {
       1: { limit: 400, fakeMode: 'none', baseWaitMin: 2000, baseWaitMax: 4000, img: 'assets/lv1.png' },
@@ -264,7 +287,7 @@
       DOM.noiseOverlay.classList.remove('hidden');
       DOM.nullImage.className = "absolute inset-0 object-cover w-full h-full opacity-80 filter contrast-125 saturate-50 mix-blend-screen glitch";
 
-      DOM.signalText.innerHTML = '<span class="text-4xl md:text-5xl text-gray-600 opacity-50 tracking-widest animate-pulse">[ STANDBY... ]</span>';
+      DOM.signalText.innerHTML = '<span class="text-3xl sm:text-4xl md:text-5xl text-gray-600 opacity-50 tracking-widest animate-pulse font-bold bg-black/60 px-4 sm:px-6 py-2 rounded shadow-lg whitespace-nowrap">[ STANDBY... ]</span>';
 
       let totalWait = Math.floor(Math.random() * (conf.baseWaitMax - conf.baseWaitMin + 1)) + conf.baseWaitMin;
       let timeline = [];
@@ -311,7 +334,7 @@
           timers.push(setTimeout(() => {
             if (currentState === 'ready' || currentState === 'fake') {
               currentState = 'ready';
-              DOM.signalText.innerHTML = '<span class="text-4xl md:text-5xl text-gray-600 opacity-50 tracking-widest animate-pulse font-bold bg-black/60 px-6 py-2 rounded shadow-lg">[ STANDBY... ]</span>';
+              DOM.signalText.innerHTML = '<span class="text-3xl sm:text-4xl md:text-5xl text-gray-600 opacity-50 tracking-widest animate-pulse font-bold bg-black/60 px-4 sm:px-6 py-2 rounded shadow-lg whitespace-nowrap">[ STANDBY... ]</span>';
             }
           }, event.time + 150)); // やや長めにして視認させる
         } else if (event.type === 'go') {
@@ -324,9 +347,11 @@
       if (currentState !== 'ready') return;
       currentState = 'fake';
 
+      // iOSなどでラグを減らすための事前準備確認
+      if(SE.fake.readyState === 0) SE.fake.load();
       SE.fake.currentTime = 0;
       SE.fake.play().catch(() => { });
-      DOM.signalText.innerHTML = `<span class="text-5xl md:text-6xl font-bold tracking-tighter ${colorClass} bg-black/60 px-6 py-2 rounded shadow-lg z-20">${text}</span>`;
+      DOM.signalText.innerHTML = `<span class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter ${colorClass} bg-black/60 px-4 sm:px-6 py-2 rounded shadow-lg z-20 whitespace-nowrap">${text}</span>`;
     }
 
     function triggerGo() {
@@ -336,8 +361,9 @@
       DOM.noiseOverlay.classList.add('hidden');
       DOM.nullImage.className = "absolute inset-0 object-cover w-full h-full border-4 border-red-600 shadow-[inset_0_0_40px_rgba(255,0,60,0.8)] filter contrast-150 saturate-150";
 
-      DOM.signalText.innerHTML = `<span class="text-6xl md:text-7xl font-bold neon-red tracking-tighter bg-black/60 px-6 py-2 rounded shadow-2xl z-20">[ OVERRIDE ! ]</span>`;
+      DOM.signalText.innerHTML = `<span class="text-5xl sm:text-6xl md:text-7xl font-bold neon-red tracking-tighter bg-black/60 px-4 sm:px-6 py-2 rounded shadow-2xl z-20 whitespace-nowrap">[ OVERRIDE ! ]</span>`;
 
+      if(SE.alert.readyState === 0) SE.alert.load();
       SE.alert.currentTime = 0;
       SE.alert.play().catch(() => { });
 
@@ -352,13 +378,7 @@
 
     function handleTap() {
       if (currentState === 'start') {
-        Object.values(SE).forEach(a => {
-          a.volume = 0;
-          let p = a.play();
-          if (p !== undefined) { p.catch(() => { }).then(() => { a.pause(); a.volume = 0.8; a.currentTime = 0; }); }
-        });
-        SE.alert.volume = 0.9;
-        SE.fake.volume = 0.5;
+        unlockAudio(); // 初回タップで音声を確実にアンロック
         startLevel();
         return;
       }
@@ -427,7 +447,7 @@
         DOM.resultTime.innerText = `${(reactTime / 1000).toFixed(3)}s`;
         DOM.resultTime.className = "text-2xl font-mono neon-blue";
 
-        DOM.nextButton.innerText = "[ NEXT LEVEL ]";
+        DOM.nextButton.innerHTML = "<span class='whitespace-nowrap'>[ NEXT LEVEL ]</span>";
         DOM.nextButton.className = "w-full px-6 py-3 border border-[#00f3ff] text-[#00f3ff] hover:bg-[#00f3ff] hover:text-black transition-all tracking-widest uppercase font-bold text-lg shadow-[0_0_10px_#00f3ff] backdrop-blur-sm bg-black/50 z-20";
         DOM.nextButton.onclick = (e) => {
           e.stopPropagation();
@@ -470,7 +490,7 @@
       }
       DOM.resultTime.className = "text-2xl font-mono neon-red";
 
-      DOM.nextButton.innerText = "[ REBOOT ]";
+      DOM.nextButton.innerHTML = "<span class='whitespace-nowrap'>[ REBOOT ]</span>";
       DOM.nextButton.className = "w-full px-6 py-3 border border-[#ff003c] text-[#ff003c] hover:bg-[#ff003c] hover:text-white transition-all tracking-widest uppercase font-bold text-lg shadow-[0_0_10px_#ff003c] backdrop-blur-sm bg-black/50 z-20";
       DOM.nextButton.onclick = (e) => {
         e.stopPropagation();
