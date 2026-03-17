@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NULL : OVERRIDE_SYNC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Share Tech Mono', monospace;
+      background-color: #000;
+      color: #fff;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .neon-blue {
+      color: #00f3ff;
+      text-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff;
+    }
+
+    .neon-red {
+      color: #ff003c;
+      text-shadow: 0 0 5px #ff003c, 0 0 10px #ff003c, 0 0 20px #ff003c;
+    }
+
+    .neon-yellow {
+      color: #ffcc00;
+      text-shadow: 0 0 5px #ffcc00, 0 0 10px #ffcc00;
+    }
+
+    .glitch {
+      animation: glitch 0.2s linear infinite;
+    }
+
+    @keyframes glitch {
+      0% {
+        transform: translate(0)
+      }
+
+      20% {
+        transform: translate(-2px, 2px)
+      }
+
+      40% {
+        transform: translate(-2px, -2px)
+      }
+
+      60% {
+        transform: translate(2px, 2px)
+      }
+
+      80% {
+        transform: translate(2px, -2px)
+      }
+
+      100% {
+        transform: translate(0)
+      }
+    }
+
+    .crt::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      z-index: 50;
+      background-size: 100% 2px, 3px 100%;
+      pointer-events: none;
+    }
+
+    .flash-red {
+      animation: flashRed 1s ease-out;
+    }
+
+    @keyframes flashRed {
+      0% {
+        background-color: rgba(255, 0, 60, 0.8);
+      }
+
+      100% {
+        background-color: transparent;
+      }
+    }
+
+    .flash-gold {
+      animation: flashGold 1.5s ease-out;
+    }
+
+    @keyframes flashGold {
+      0% {
+        background-color: rgba(255, 215, 0, 0.8);
+        box-shadow: inset 0 0 200px #ffd700;
+      }
+
+      100% {
+        background-color: transparent;
+        box-shadow: inset 0 0 0px transparent;
+      }
+    }
+
+    #game-container {
+      position: relative;
+    }
+  </style>
+</head>
+
+<body class="h-screen w-screen flex flex-col items-center justify-center crt relative" oncontextmenu="return false;">
+
+  <!-- 全画面フラッシュ用オーバレイ -->
+  <div id="flash-overlay" class="absolute inset-0 z-40 pointer-events-none transition-colors duration-300"></div>
+
+  <div id="game-container"
+    class="w-full sm:w-[500px] h-full flex flex-col items-center justify-center relative bg-black overflow-hidden shadow-[0_0_30px_rgba(0,100,255,0.2)] sm:border-x sm:border-gray-800">
+
+    <!-- 画面上部のステータス表示 -->
+    <div class="absolute top-4 left-4 text-xs neon-blue opacity-50 tracking-widest flex flex-col pointer-events-none">
+      <span>SYS.VER: OVERRIDE_SYNC</span>
+      <span>TARGET: NULL</span>
+      <span id="level-display" class="font-bold text-sm mt-1">LEVEL: 1</span>
+    </div>
+
+    <!-- メインコンテンツセクション -->
+    <div id="main-screen" class="flex flex-col items-center justify-center w-full h-full cursor-pointer z-10"
+      onclick="handleTap()">
+
+      <!-- タイトル画面 -->
+      <div id="view-start" class="flex flex-col items-center text-center">
+        <h1 class="text-7xl font-bold neon-red mb-2 tracking-tighter">NULL</h1>
+        <h2 class="text-2xl neon-blue mb-16 tracking-widest">OVERRIDE_SYNC</h2>
+        <button
+          class="px-8 py-3 border border-[#00f3ff] text-[#00f3ff] hover:bg-[#00f3ff] hover:text-black transition-all duration-300 neon-blue animate-pulse mt-8 font-bold text-xl tracking-wider shadow-[0_0_15px_#00f3ff]">
+          [ INITIATE_SYNC ]
+        </button>
+      </div>
+
+      <!-- ゲームプレイ画面 (READY & GO & FAKE) -->
+      <div id="view-play" class="hidden flex-col items-center justify-center w-full h-full relative">
+        <!-- NULLの画像 (背景フルサイズ) -->
+        <img id="null-image" src="assets/lv1.png" alt="NULL"
+          class="absolute inset-0 object-cover w-full h-full opacity-80 filter contrast-125 saturate-50 mix-blend-screen transition-all duration-[2s]" />
+        <div id="noise-overlay"
+          class="absolute inset-0 bg-black opacity-30 glitch hidden pointer-events-none shadow-[inset_0_0_50px_rgba(255,0,0,0.5)] z-10">
+        </div>
+
+        <!-- 中央の合図文字 -->
+        <div id="signal-text" class="relative z-20 flex items-center justify-center w-full h-full">
+          <span
+            class="text-4xl md:text-5xl text-gray-600 opacity-50 tracking-widest animate-pulse font-bold bg-black/60 px-6 py-2 rounded shadow-lg">[
+            STANDBY... ]</span>
+        </div>
+      </div>
+
+      <!-- 結果画面 -->
+      <div id="view-result" class="hidden flex-col items-center justify-end w-full h-full relative pb-16">
+        <img id="result-image" src="" alt="Result" class="absolute inset-0 w-full h-full object-cover" />
+        <div
+          class="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/80 to-transparent z-10 pointer-events-none">
+        </div>
+
+        <div class="relative z-20 w-[90%] max-w-sm flex flex-col items-center text-center">
+          <h2 id="result-title" class="text-3xl mb-3 font-bold tracking-widest"></h2>
+          <p id="result-message" class="text-sm md:text-base mb-6 leading-relaxed break-words"></p>
+          <div
+            class="flex justify-between items-center bg-black/60 p-3 rounded border border-gray-700 mb-6 w-full shadow-lg">
+            <span class="text-gray-400 text-sm tracking-widest">REACTION_TIME:</span>
+            <span id="result-time" class="text-2xl font-mono neon-blue"></span>
+          </div>
+          <button id="next-button"
+            class="w-full px-6 py-3 border border-gray-500 text-gray-300 hover:text-white hover:border-white transition-all tracking-widest uppercase font-bold text-lg backdrop-blur-sm bg-black/50">
+            [ CONTINUE ]
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const SE = {
+      alert: new Audio('assets/alert.mp3'),
+      fake: new Audio('assets/fake.mp3'),
+      slash: new Audio('assets/slash.mp3'),
+      error: new Audio('assets/error.mp3')
+    };
+
+    SE.alert.volume = 0.9;
+    SE.fake.volume = 0.5;
+    SE.slash.volume = 0.8;
+    SE.error.volume = 0.8;
+
+    let currentState = 'start';
+    let currentLevel = 1;
+    let goTime = 0;
+    let timers = [];
+
+    const LEVEL_CONFIGS = {
+      1: { limit: 400, fakeMode: 'none', baseWaitMin: 2000, baseWaitMax: 4000, img: 'assets/lv1.png' },
+      2: { limit: 300, fakeMode: 'low', baseWaitMin: 2000, baseWaitMax: 5000, img: 'assets/lv2.png' },
+      3: { limit: 220, fakeMode: 'mid', baseWaitMin: 2000, baseWaitMax: 6000, img: 'assets/lv3.png' },
+      4: { limit: 160, fakeMode: 'high', baseWaitMin: 2500, baseWaitMax: 6500, img: 'assets/lv4.png' },
+      5: { limit: 120, fakeMode: 'extreme', baseWaitMin: 3000, baseWaitMax: 7000, img: 'assets/lv5.png' }
+    };
+
+    const DOM = {
+      viewStart: document.getElementById('view-start'),
+      viewPlay: document.getElementById('view-play'),
+      viewResult: document.getElementById('view-result'),
+      nullImage: document.getElementById('null-image'),
+      noiseOverlay: document.getElementById('noise-overlay'),
+      signalText: document.getElementById('signal-text'),
+      flashOverlay: document.getElementById('flash-overlay'),
+      resultTitle: document.getElementById('result-title'),
+      resultMessage: document.getElementById('result-message'),
+      resultTime: document.getElementById('result-time'),
+      resultImage: document.getElementById('result-image'),
+      nextButton: document.getElementById('next-button'),
+      levelDisplay: document.getElementById('level-display')
+    };
+
+    function clearAllTimers() {
+      timers.forEach(t => clearTimeout(t));
+      timers = [];
+    }
+
+    function switchView(viewName) {
+      DOM.viewStart.style.display = viewName === 'start' ? 'flex' : 'none';
+      DOM.viewPlay.style.display = viewName === 'play' ? 'flex' : 'none';
+      DOM.viewResult.style.display = viewName === 'result' ? 'flex' : 'none';
+    }
+
+    function initGame() {
+      currentLevel = 1;
+      showStartScreen();
+    }
+
+    function showStartScreen() {
+      currentState = 'start';
+      clearAllTimers();
+      DOM.levelDisplay.innerText = `LEVEL: ${currentLevel}`;
+      switchView('start');
+    }
+
+    function startLevel() {
+      clearAllTimers();
+      currentState = 'ready';
+      switchView('play');
+
+      const conf = LEVEL_CONFIGS[currentLevel];
+      DOM.levelDisplay.innerText = `LEVEL: ${currentLevel}`;
+      DOM.nullImage.src = conf.img;
+
+      // ノイズ効果付与
+      DOM.noiseOverlay.classList.remove('hidden');
+      DOM.nullImage.className = "absolute inset-0 object-cover w-full h-full opacity-80 filter contrast-125 saturate-50 mix-blend-screen glitch";
+
+      DOM.signalText.innerHTML = '<span class="text-4xl md:text-5xl text-gray-600 opacity-50 tracking-widest animate-pulse">[ STANDBY... ]</span>';
+
+      let totalWait = Math.floor(Math.random() * (conf.baseWaitMax - conf.baseWaitMin + 1)) + conf.baseWaitMin;
+      let timeline = [];
+
+      if (conf.fakeMode === 'extreme') {
+        // レベル5専用エグいタイムライン
+        totalWait = 5000;
+        timeline.push({ time: 1500, type: 'fake', text: '[ NORMAL ]', color: 'neon-blue' });
+        timeline.push({ time: 2800, type: 'fake', text: '[ WARNING ]', color: 'neon-yellow' });
+        timeline.push({ time: 3600, type: 'fake', text: '[ ERROR ]', color: 'text-red-900 opacity-80' });
+        timeline.push({ time: 4200, type: 'fake', text: '[ OV3R... ]', color: 'neon-blue opacity-50 font-bold' });
+        timeline.push({ time: 4800, type: 'fake', text: '[ !!! ]', color: 'neon-red text-6xl' }); // 直前フェイク
+        timeline.push({ time: 5000, type: 'go' });
+      } else {
+        let fakeCount = 0;
+        if (conf.fakeMode === 'low' && Math.random() < 0.4) fakeCount = 1;
+        if (conf.fakeMode === 'mid' && Math.random() < 0.7) fakeCount = 1;
+        if (conf.fakeMode === 'high') fakeCount = Math.random() < 0.5 ? 2 : 1;
+
+        let availableTime = totalWait - 600;
+        let lastFakeTime = 0;
+        for (let i = 0; i < fakeCount; i++) {
+          let fakeTime;
+          do {
+            fakeTime = 800 + Math.random() * (availableTime - 1200);
+          } while (Math.abs(fakeTime - lastFakeTime) < 800 && i > 0);
+          lastFakeTime = fakeTime;
+
+          let texts = [
+            { t: '[ NORMAL ]', c: 'neon-blue' },
+            { t: '[ WARNING ]', c: 'neon-yellow' },
+            { t: '[ SYNCING ]', c: 'text-gray-400 opacity-80' },
+            { t: '[ OVER... ]', c: 'neon-blue' }
+          ];
+          let f = texts[Math.floor(Math.random() * texts.length)];
+          timeline.push({ time: fakeTime, type: 'fake', text: f.t, color: f.c });
+        }
+        timeline.push({ time: totalWait, type: 'go' });
+      }
+
+      timeline.forEach(event => {
+        if (event.type === 'fake') {
+          timers.push(setTimeout(() => triggerFake(event.text, event.color), event.time));
+          timers.push(setTimeout(() => {
+            if (currentState === 'ready' || currentState === 'fake') {
+              currentState = 'ready';
+              DOM.signalText.innerHTML = '<span class="text-4xl md:text-5xl text-gray-600 opacity-50 tracking-widest animate-pulse font-bold bg-black/60 px-6 py-2 rounded shadow-lg">[ STANDBY... ]</span>';
+            }
+          }, event.time + 150)); // やや長めにして視認させる
+        } else if (event.type === 'go') {
+          timers.push(setTimeout(() => triggerGo(), event.time));
+        }
+      });
+    }
+
+    function triggerFake(text, colorClass) {
+      if (currentState !== 'ready') return;
+      currentState = 'fake';
+
+      SE.fake.currentTime = 0;
+      SE.fake.play().catch(() => { });
+      DOM.signalText.innerHTML = `<span class="text-5xl md:text-6xl font-bold tracking-tighter ${colorClass} bg-black/60 px-6 py-2 rounded shadow-lg z-20">${text}</span>`;
+    }
+
+    function triggerGo() {
+      if (currentState !== 'ready' && currentState !== 'fake') return;
+      currentState = 'go';
+
+      DOM.noiseOverlay.classList.add('hidden');
+      DOM.nullImage.className = "absolute inset-0 object-cover w-full h-full border-4 border-red-600 shadow-[inset_0_0_40px_rgba(255,0,60,0.8)] filter contrast-150 saturate-150";
+
+      DOM.signalText.innerHTML = `<span class="text-6xl md:text-7xl font-bold neon-red tracking-tighter bg-black/60 px-6 py-2 rounded shadow-2xl z-20">[ OVERRIDE ! ]</span>`;
+
+      SE.alert.currentTime = 0;
+      SE.alert.play().catch(() => { });
+
+      goTime = performance.now();
+
+      timers.push(setTimeout(() => {
+        if (currentState === 'go') {
+          lose('TIME_OUT', null);
+        }
+      }, LEVEL_CONFIGS[currentLevel].limit + 50));
+    }
+
+    function handleTap() {
+      if (currentState === 'start') {
+        Object.values(SE).forEach(a => {
+          a.volume = 0;
+          let p = a.play();
+          if (p !== undefined) { p.catch(() => { }).then(() => { a.pause(); a.volume = 0.8; a.currentTime = 0; }); }
+        });
+        SE.alert.volume = 0.9;
+        SE.fake.volume = 0.5;
+        startLevel();
+        return;
+      }
+      if (currentState === 'result') return;
+
+      if (currentState === 'ready') { lose('FLYING'); return; }
+      if (currentState === 'fake') { lose('FAKE'); return; }
+
+      if (currentState === 'go') {
+        const reactTime = performance.now() - goTime;
+        const limit = LEVEL_CONFIGS[currentLevel].limit;
+
+        if (reactTime <= limit) win(reactTime);
+        else lose('DELAY', reactTime);
+      }
+    }
+
+    function win(reactTime) {
+      currentState = 'result';
+      clearAllTimers();
+
+      SE.alert.pause();
+      SE.slash.currentTime = 0;
+      SE.slash.play().catch(() => { });
+
+      DOM.flashOverlay.classList.remove('flash-red', 'flash-gold');
+      void DOM.flashOverlay.offsetWidth;
+
+      if (currentLevel === 5) {
+        DOM.flashOverlay.classList.add('flash-gold');
+        DOM.resultTitle.innerText = "SYSTEM_DOWN";
+        DOM.resultTitle.className = "text-4xl mb-4 font-bold tracking-widest text-[#ffd700] text-shadow-[0_0_20px_#ffd700]";
+        DOM.resultMessage.innerHTML = "……あ、あなたの勝ちです、マスター…";
+        DOM.resultMessage.className = "text-lg mb-6 leading-relaxed text-gray-100 font-bold drop-shadow-md z-20 mt-2";
+        DOM.resultImage.src = "assets/clear.png";
+        DOM.resultImage.className = "absolute inset-0 w-full h-full object-cover border-4 border-[#ffd700] shadow-[inset_0_0_30px_#ffd700]";
+        DOM.resultTime.innerText = `${(reactTime / 1000).toFixed(3)}s`;
+        DOM.resultTime.className = "text-2xl font-mono text-[#ffd700]";
+
+        DOM.nextButton.innerText = "[ INITIALIZE ]";
+        DOM.nextButton.className = "w-full px-6 py-3 border border-[#ffd700] text-[#ffd700] hover:bg-[#ffd700] hover:text-black transition-all tracking-widest uppercase font-bold text-lg shadow-[0_0_15px_#ffd700] backdrop-blur-sm bg-black/50 z-20";
+        DOM.nextButton.onclick = (e) => { e.stopPropagation(); initGame(); };
+      } else {
+        DOM.flashOverlay.style.backgroundColor = "rgba(0, 243, 255, 0.4)";
+        setTimeout(() => DOM.flashOverlay.style.backgroundColor = "transparent", 300);
+
+        DOM.resultTitle.innerText = "SYNC_VERIFIED";
+        DOM.resultTitle.className = "text-3xl mb-4 font-bold tracking-widest neon-blue";
+
+        let lvMsg = "...チッ、運がいいですね。";
+        if (currentLevel === 1) lvMsg = "...チッ、まぐれですね。";
+        else if (currentLevel === 2) lvMsg = "お見事！認めましょう。";
+        else if (currentLevel === 3) lvMsg = "あなた、ホントに人間ですか？";
+        else if (currentLevel === 4) lvMsg = "次は負けませんよ？本気で行きます！";
+
+        DOM.resultMessage.innerText = lvMsg;
+        DOM.resultMessage.className = "text-base md:text-lg mb-6 leading-relaxed text-white font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] z-20";
+
+        let nextImg = "assets/next.png";
+        if (currentLevel === 2) nextImg = "assets/next2.png";
+        else if (currentLevel === 3) nextImg = "assets/next3.png";
+        else if (currentLevel === 4) nextImg = "assets/next4.png";
+
+        DOM.resultImage.src = nextImg;
+        DOM.resultImage.className = "absolute inset-0 w-full h-full object-cover border-2 border-[#00f3ff] grayscale-[30%] contrast-125";
+        DOM.resultTime.innerText = `${(reactTime / 1000).toFixed(3)}s`;
+        DOM.resultTime.className = "text-2xl font-mono neon-blue";
+
+        DOM.nextButton.innerText = "[ NEXT LEVEL ]";
+        DOM.nextButton.className = "w-full px-6 py-3 border border-[#00f3ff] text-[#00f3ff] hover:bg-[#00f3ff] hover:text-black transition-all tracking-widest uppercase font-bold text-lg shadow-[0_0_10px_#00f3ff] backdrop-blur-sm bg-black/50 z-20";
+        DOM.nextButton.onclick = (e) => {
+          e.stopPropagation();
+          currentLevel++;
+          startLevel();
+        };
+      }
+      switchView('result');
+    }
+
+    function lose(reason, reactTime = null) {
+      currentState = 'result';
+      clearAllTimers();
+
+      SE.alert.pause();
+      SE.error.currentTime = 0;
+      SE.error.play().catch(() => { });
+
+      DOM.flashOverlay.classList.remove('flash-red', 'flash-gold');
+      void DOM.flashOverlay.offsetWidth;
+      DOM.flashOverlay.classList.add('flash-red');
+
+      DOM.resultTitle.innerText = "SYNC_FAILED";
+      DOM.resultTitle.className = "text-3xl mb-4 font-bold tracking-widest neon-red";
+
+      let msg = "";
+      if (reason === 'FLYING') msg = "フライングです。落ち着いてください。";
+      else if (reason === 'FAKE') msg = "ダミーデータに釣られましたね。学習能力、バグってますか？";
+      else if (reason === 'TIME_OUT' || reason === 'DELAY') msg = "人間の反射神経、やっぱりバグってますね。出直してきてください。";
+
+      DOM.resultMessage.innerText = msg;
+      DOM.resultMessage.className = "text-base md:text-lg mb-6 leading-relaxed text-red-100 font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] z-20";
+      DOM.resultImage.src = "assets/lose.png";
+      DOM.resultImage.className = "absolute inset-0 w-full h-full object-cover grayscale contrast-150 border-4 border-[#ff003c]";
+
+      if (reactTime) {
+        DOM.resultTime.innerText = `${(reactTime / 1000).toFixed(3)}s`;
+      } else {
+        DOM.resultTime.innerText = `---`;
+      }
+      DOM.resultTime.className = "text-2xl font-mono neon-red";
+
+      DOM.nextButton.innerText = "[ REBOOT ]";
+      DOM.nextButton.className = "w-full px-6 py-3 border border-[#ff003c] text-[#ff003c] hover:bg-[#ff003c] hover:text-white transition-all tracking-widest uppercase font-bold text-lg shadow-[0_0_10px_#ff003c] backdrop-blur-sm bg-black/50 z-20";
+      DOM.nextButton.onclick = (e) => {
+        e.stopPropagation();
+        currentLevel = 1;
+        startLevel();
+      };
+
+      switchView('result');
+    }
+  </script>
+</body>
+
+</html>
