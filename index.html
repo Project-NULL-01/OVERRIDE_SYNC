@@ -135,8 +135,7 @@
       <div id="view-start" class="flex flex-col items-center text-center w-full h-full relative justify-center">
         <img src="assets/title.png" alt="Title" class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none" />
         <div class="relative z-10 flex flex-col items-center">
-          <h1 class="text-6xl sm:text-7xl font-bold neon-red mb-2 tracking-tighter drop-shadow-lg whitespace-nowrap">NULL</h1>
-          <h2 class="text-xl sm:text-2xl neon-blue mb-16 tracking-widest drop-shadow-md whitespace-nowrap">OVERRIDE_SYNC</h2>
+          <div class="h-32 w-full mt-24"></div> <!-- Spacer to push button down -->
           <button
             class="px-6 py-3 border border-[#00f3ff] text-[#00f3ff] hover:bg-[#00f3ff] hover:text-black transition-all duration-300 neon-blue animate-pulse mt-8 font-bold text-lg sm:text-xl tracking-wider shadow-[0_0_15px_#00f3ff] backdrop-blur-sm bg-black/30 whitespace-nowrap">
             [ INITIATE_SYNC ]
@@ -168,8 +167,8 @@
         </div>
 
         <div class="relative z-20 w-[90%] max-w-sm flex flex-col items-center text-center">
-          <h2 id="result-title" class="text-3xl mb-3 font-bold tracking-widest"></h2>
-          <p id="result-message" class="text-sm md:text-base mb-6 leading-relaxed break-words"></p>
+          <h2 id="result-title" class="text-3xl mb-3 font-bold tracking-widest py-2 overflow-visible leading-normal"></h2>
+          <p id="result-message" class="text-sm md:text-base mb-6 leading-relaxed break-words py-1"></p>
           <div
             class="flex justify-between items-center bg-black/60 p-3 rounded border border-gray-700 mb-6 w-full shadow-lg">
             <span class="text-gray-400 text-sm tracking-widest">REACTION_TIME:</span>
@@ -186,17 +185,10 @@
   </div>
 
   <script>
-    const SE = {
-      alert: new Audio('assets/alert.mp3'),
-      fake: new Audio('assets/fake.mp3'),
-      slash: new Audio('assets/slash.mp3'),
-      error: new Audio('assets/error.mp3')
-    };
-
-    SE.alert.volume = 0.9;
-    SE.fake.volume = 0.5;
-    SE.slash.volume = 0.8;
-    SE.error.volume = 0.8;
+    // Web Audio API Context (Safari/iOS対応)
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+    const audioBuffers = {};
 
     let currentState = 'start';
     let currentLevel = 1;
@@ -204,26 +196,54 @@
     let timers = [];
     let audioUnlocked = false;
 
-    // 初回タップ時の音声事前読み込み（ラグ対策）
+    // 非同期で音声ファイルをデコードしてメモリに保存
+    async function loadAudio(name, url) {
+      try {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        audioBuffers[name] = audioBuffer;
+      } catch (e) {
+        console.error("Audio Load Error:", e);
+      }
+    }
+
+    // ゲーム開始前にロード開始
+    loadAudio('alert', 'assets/alert.mp3');
+    loadAudio('fake', 'assets/fake.mp3');
+    loadAudio('slash', 'assets/slash.mp3');
+    loadAudio('error', 'assets/error.mp3');
+
+    // ラグゼロの再生関数
+    function playSound(name, vol = 1.0) {
+      if (!audioBuffers[name] || audioCtx.state === 'suspended') return;
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuffers[name];
+      
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.value = vol;
+      
+      source.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      source.start(0);
+    }
+
+    // 初回タップ時のAudioContextアンロック（iOS必須）
     function unlockAudio() {
       if (audioUnlocked) return;
-      Object.values(SE).forEach(a => {
-        a.volume = 0;
-        let p = a.play();
-        if (p !== undefined) { 
-          p.catch(() => {}).then(() => { 
-            a.pause(); 
-            a.currentTime = 0; 
-          }); 
-        }
-      });
-      // 一定時間後に本来のボリュームに戻す
-      setTimeout(() => {
-        SE.alert.volume = 0.9;
-        SE.fake.volume = 0.5;
-        SE.slash.volume = 0.8;
-        SE.error.volume = 0.8;
-      }, 100);
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      
+      // 無音のオシレーターを鳴らして完全にアンロックする
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.value = 0;
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      osc.start(0);
+      osc.stop(0.01);
+      
       audioUnlocked = true;
     }
 
@@ -347,10 +367,7 @@
       if (currentState !== 'ready') return;
       currentState = 'fake';
 
-      // iOSなどでラグを減らすための事前準備確認
-      if(SE.fake.readyState === 0) SE.fake.load();
-      SE.fake.currentTime = 0;
-      SE.fake.play().catch(() => { });
+      playSound('fake', 0.5);
       DOM.signalText.innerHTML = `<span class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter ${colorClass} bg-black/60 px-4 sm:px-6 py-2 rounded shadow-lg z-20 whitespace-nowrap">${text}</span>`;
     }
 
@@ -363,9 +380,7 @@
 
       DOM.signalText.innerHTML = `<span class="text-5xl sm:text-6xl md:text-7xl font-bold neon-red tracking-tighter bg-black/60 px-4 sm:px-6 py-2 rounded shadow-2xl z-20 whitespace-nowrap">[ OVERRIDE ! ]</span>`;
 
-      if(SE.alert.readyState === 0) SE.alert.load();
-      SE.alert.currentTime = 0;
-      SE.alert.play().catch(() => { });
+      playSound('alert', 0.9);
 
       goTime = performance.now();
 
@@ -400,9 +415,7 @@
       currentState = 'result';
       clearAllTimers();
 
-      SE.alert.pause();
-      SE.slash.currentTime = 0;
-      SE.slash.play().catch(() => { });
+      playSound('slash', 0.8);
 
       DOM.flashOverlay.classList.remove('flash-red', 'flash-gold');
       void DOM.flashOverlay.offsetWidth;
@@ -410,7 +423,7 @@
       if (currentLevel === 5) {
         DOM.flashOverlay.classList.add('flash-gold');
         DOM.resultTitle.innerText = "SYSTEM_DOWN";
-        DOM.resultTitle.className = "text-4xl mb-4 font-bold tracking-widest text-[#ffd700] text-shadow-[0_0_20px_#ffd700]";
+        DOM.resultTitle.className = "text-4xl mb-4 font-bold tracking-widest text-[#ffd700] text-shadow-[0_0_20px_#ffd700] py-2 overflow-visible leading-normal";
         DOM.resultMessage.innerHTML = "……あ、あなたの勝ちです、マスター…";
         DOM.resultMessage.className = "text-lg mb-6 leading-relaxed text-gray-100 font-bold drop-shadow-md z-20 mt-2";
         DOM.resultImage.src = "assets/clear.png";
@@ -426,7 +439,7 @@
         setTimeout(() => DOM.flashOverlay.style.backgroundColor = "transparent", 300);
 
         DOM.resultTitle.innerText = "SYNC_VERIFIED";
-        DOM.resultTitle.className = "text-3xl mb-4 font-bold tracking-widest neon-blue";
+        DOM.resultTitle.className = "text-3xl mb-4 font-bold tracking-widest neon-blue py-2 overflow-visible leading-normal";
 
         let lvMsg = "...チッ、運がいいですね。";
         if (currentLevel === 1) lvMsg = "...チッ、まぐれですね。";
@@ -462,16 +475,14 @@
       currentState = 'result';
       clearAllTimers();
 
-      SE.alert.pause();
-      SE.error.currentTime = 0;
-      SE.error.play().catch(() => { });
+      playSound('error', 0.8);
 
       DOM.flashOverlay.classList.remove('flash-red', 'flash-gold');
       void DOM.flashOverlay.offsetWidth;
       DOM.flashOverlay.classList.add('flash-red');
 
       DOM.resultTitle.innerText = "SYNC_FAILED";
-      DOM.resultTitle.className = "text-3xl mb-4 font-bold tracking-widest neon-red";
+      DOM.resultTitle.className = "text-3xl mb-4 font-bold tracking-widest neon-red py-2 overflow-visible leading-normal";
 
       let msg = "";
       if (reason === 'FLYING') msg = "フライングです。落ち着いてください。";
