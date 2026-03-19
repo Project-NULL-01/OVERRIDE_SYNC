@@ -531,7 +531,11 @@
       wt.className = 'text-6xl sm:text-7xl md:text-8xl font-bold tracking-[0.2em] win-text-anim';
       wt.innerText = 'WIN';
 
-      playSound('win', 0.8);
+      if (currentLevel === 5) {
+        playSound('win', 0.8);
+      } else {
+        playSound('slash', 0.5); // 通常レベルは控えめな音
+      }
 
       // 演出終了後、結果画面へ
       timers.push(setTimeout(() => {
@@ -662,13 +666,8 @@
       clearAllTimers();
       playSound('slash', 0.8);
 
-      // レベル5（最終ステージ）はWIN演出なしで即結果表示
-      if (currentLevel === 5) {
-        showWinResult(reactTime);
-      } else {
-        // WIN演出カットイン → 結果画面
-        showWinCutIn(reactTime);
-      }
+      // 全レベルでWIN演出カットインを表示（ファンファーレ制御はshowWinCutIn内）
+      showWinCutIn(reactTime);
     }
 
     function showWinResult(reactTime) {
