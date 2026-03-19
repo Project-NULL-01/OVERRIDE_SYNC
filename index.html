@@ -15,21 +15,27 @@
       overflow: hidden;
       user-select: none;
       -webkit-user-select: none;
+      text-rendering: geometricPrecision;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     .neon-blue {
       color: #00f3ff;
-      text-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff;
+      text-shadow: 0 0 3px #00f3ff, 0 0 6px rgba(0,243,255,0.5);
+      -webkit-text-stroke: 0.3px #00f3ff;
     }
 
     .neon-red {
       color: #ff003c;
-      text-shadow: 0 0 5px #ff003c, 0 0 10px #ff003c, 0 0 20px #ff003c;
+      text-shadow: 0 0 3px #ff003c, 0 0 6px rgba(255,0,60,0.5);
+      -webkit-text-stroke: 0.3px #ff003c;
     }
 
     .neon-yellow {
       color: #ffcc00;
-      text-shadow: 0 0 5px #ffcc00, 0 0 10px #ffcc00;
+      text-shadow: 0 0 3px #ffcc00, 0 0 6px rgba(255,204,0,0.5);
+      -webkit-text-stroke: 0.3px #ffcc00;
     }
 
     .glitch {
@@ -109,6 +115,80 @@
     #game-container {
       position: relative;
     }
+
+    /* === レベル表示演出 === */
+    @keyframes levelTextIn {
+      0% { opacity: 0; transform: scale(0.5); letter-spacing: 0.5em; }
+      30% { opacity: 1; transform: scale(1.05); letter-spacing: 0.15em; }
+      70% { opacity: 1; transform: scale(1); letter-spacing: 0.15em; }
+      100% { opacity: 0; transform: scale(1.2); letter-spacing: 0.3em; }
+    }
+    .level-text-anim {
+      animation: levelTextIn 2s ease-in-out forwards;
+    }
+
+    /* === シネマバー（上下黒帯） === */
+    @keyframes cinemaBarIn {
+      0% { height: 0; }
+      100% { height: 22%; }
+    }
+    @keyframes cinemaBarOut {
+      0% { height: 22%; }
+      100% { height: 0; }
+    }
+    .cinema-bar {
+      position: absolute;
+      left: 0; right: 0;
+      background: #000;
+      z-index: 60;
+      height: 0;
+    }
+    .cinema-bar-top { top: 0; }
+    .cinema-bar-bottom { bottom: 0; }
+    .cinema-bar-in {
+      animation: cinemaBarIn 0.4s ease-out forwards;
+    }
+    .cinema-bar-out {
+      animation: cinemaBarOut 0.3s ease-in forwards;
+    }
+
+    /* === カットインフラッシュ === */
+    @keyframes cutInFlash {
+      0% { opacity: 0; transform: scaleX(0); }
+      15% { opacity: 1; transform: scaleX(1); }
+      70% { opacity: 1; transform: scaleX(1); }
+      100% { opacity: 0; transform: scaleX(1.1); }
+    }
+    .cut-in-text {
+      animation: cutInFlash 1.2s ease-out forwards;
+      transform-origin: center;
+    }
+
+    /* === WIN演出 === */
+    @keyframes winSlash {
+      0% { opacity: 0; transform: scale(3) rotate(-10deg); }
+      20% { opacity: 1; transform: scale(1) rotate(0deg); }
+      50% { opacity: 1; transform: scale(1) rotate(0deg); }
+      80% { opacity: 1; transform: scale(1.1) rotate(2deg); }
+      100% { opacity: 0; transform: scale(1.5) rotate(5deg); }
+    }
+    .win-text-anim {
+      animation: winSlash 1.5s ease-out forwards;
+    }
+
+    @keyframes winFlashBg {
+      0% { opacity: 0.8; }
+      100% { opacity: 0; }
+    }
+    .win-flash-bg {
+      animation: winFlashBg 0.6s ease-out forwards;
+    }
+
+    /* === 結果タイトル文字をくっきり === */
+    #result-title {
+      -webkit-text-stroke: 0.5px currentColor;
+      paint-order: stroke fill;
+    }
   </style>
 </head>
 
@@ -116,6 +196,27 @@
 
   <!-- 全画面フラッシュ用オーバレイ -->
   <div id="flash-overlay" class="absolute inset-0 z-40 pointer-events-none transition-colors duration-300"></div>
+
+  <!-- レベル表示 & カットイン演出オーバーレイ -->
+  <div id="overlay-levelIntro" class="fixed inset-0 z-[100] flex items-center justify-center bg-black pointer-events-none" style="display:none;">
+    <div id="level-intro-text" class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[0.15em] text-white" style="text-shadow: 0 0 10px rgba(0,243,255,0.6), 0 0 30px rgba(0,243,255,0.3);">
+    </div>
+  </div>
+
+  <!-- カットイン演出（シネマバー + テキスト） -->
+  <div id="overlay-cutIn" class="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none" style="display:none;">
+    <div id="cinema-bar-top" class="cinema-bar cinema-bar-top"></div>
+    <div id="cinema-bar-bottom" class="cinema-bar cinema-bar-bottom"></div>
+    <div id="cut-in-label" class="text-3xl sm:text-4xl md:text-5xl font-bold tracking-widest" style="color: #ff003c; text-shadow: 0 0 8px rgba(255,0,60,0.7), 0 0 25px rgba(255,0,60,0.3); -webkit-text-stroke: 0.5px #ff003c;">
+    </div>
+  </div>
+
+  <!-- WIN演出オーバーレイ -->
+  <div id="overlay-win" class="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none" style="display:none;">
+    <div id="win-flash" class="absolute inset-0 bg-cyan-400 opacity-0"></div>
+    <div id="win-text" class="text-6xl sm:text-7xl md:text-8xl font-bold tracking-[0.2em]" style="color: #00f3ff; text-shadow: 0 0 10px #00f3ff, 0 0 30px rgba(0,243,255,0.5); -webkit-text-stroke: 1px #00f3ff;">
+    </div>
+  </div>
 
   <div id="game-container"
     class="w-full sm:w-[500px] h-full flex flex-col items-center justify-center relative bg-black overflow-hidden shadow-[0_0_30px_rgba(0,100,255,0.2)] sm:border-x sm:border-gray-800">
@@ -132,15 +233,13 @@
       onclick="handleTap()">
 
       <!-- タイトル画面 -->
-      <div id="view-start" class="flex flex-col items-center text-center w-full h-full relative justify-center">
+      <div id="view-start" class="flex flex-col items-center text-center w-full h-full relative">
         <img src="assets/title.png" alt="Title" class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none" />
-        <div class="relative z-10 flex flex-col items-center">
-          <div class="h-32 w-full mt-24"></div> <!-- Spacer to push button down -->
-          <button
-            class="px-6 py-3 border border-[#00f3ff] text-[#00f3ff] hover:bg-[#00f3ff] hover:text-black transition-all duration-300 neon-blue animate-pulse mt-8 font-bold text-lg sm:text-xl tracking-wider shadow-[0_0_15px_#00f3ff] backdrop-blur-sm bg-black/30 whitespace-nowrap">
-            [ INITIATE_SYNC ]
-          </button>
-        </div>
+        <button
+          class="absolute z-10 px-8 py-4 border border-[#00f3ff] text-[#00f3ff] hover:bg-[#00f3ff] hover:text-black transition-all duration-300 neon-blue animate-pulse font-bold text-lg sm:text-xl tracking-wider shadow-[0_0_15px_rgba(0,243,255,0.4)] backdrop-blur-sm bg-black/40 whitespace-nowrap"
+          style="bottom: 5%;">
+          [ INITIATE_SYNC ]
+        </button>
       </div>
 
       <!-- ゲームプレイ画面 (READY & GO & FAKE) -->
@@ -196,6 +295,17 @@
     let timers = [];
     let audioUnlocked = false;
 
+    // 演出用DOM
+    const overlayLevelIntro = () => document.getElementById('overlay-levelIntro');
+    const levelIntroText = () => document.getElementById('level-intro-text');
+    const overlayCutIn = () => document.getElementById('overlay-cutIn');
+    const cinemaBarTop = () => document.getElementById('cinema-bar-top');
+    const cinemaBarBottom = () => document.getElementById('cinema-bar-bottom');
+    const cutInLabel = () => document.getElementById('cut-in-label');
+    const overlayWin = () => document.getElementById('overlay-win');
+    const winFlash = () => document.getElementById('win-flash');
+    const winText = () => document.getElementById('win-text');
+
     // 非同期で音声ファイルをデコードしてメモリに保存
     async function loadAudio(name, url) {
       try {
@@ -213,19 +323,63 @@
     loadAudio('fake', 'assets/fake.mp3');
     loadAudio('slash', 'assets/slash.mp3');
     loadAudio('error', 'assets/error.mp3');
+    loadAudio('win', 'assets/win.mp3');
 
-    // ラグゼロの再生関数
+    // ラグゼロの再生関数（ロード失敗時は合成音でフォールバック）
     function playSound(name, vol = 1.0) {
-      if (!audioBuffers[name] || audioCtx.state === 'suspended') return;
-      const source = audioCtx.createBufferSource();
-      source.buffer = audioBuffers[name];
+      if (audioCtx.state === 'suspended') return;
       
-      const gainNode = audioCtx.createGain();
-      gainNode.gain.value = vol;
+      if (audioBuffers[name]) {
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffers[name];
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.value = vol;
+        source.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        source.start(0);
+      } else {
+        // フォールバック: 合成音を鳴らす（ローカル実行時用）
+        playFallbackSound(name, vol);
+      }
+    }
+
+    function playFallbackSound(name, vol) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
       
-      source.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      source.start(0);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(vol * 0.2, audioCtx.currentTime + 0.01);
+      
+      if (name === 'alert') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.5);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+      } else if (name === 'fake') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+      } else if (name === 'slash' || name === 'win') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } else if (name === 'error') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(80, audioCtx.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+      }
     }
 
     // 初回タップ時のAudioContextアンロック（iOS必須）
@@ -282,6 +436,12 @@
       DOM.viewResult.style.display = viewName === 'result' ? 'flex' : 'none';
     }
 
+    function hideAllOverlays() {
+      overlayLevelIntro().style.display = 'none';
+      overlayCutIn().style.display = 'none';
+      overlayWin().style.display = 'none';
+    }
+
     function initGame() {
       currentLevel = 1;
       showStartScreen();
@@ -290,8 +450,94 @@
     function showStartScreen() {
       currentState = 'start';
       clearAllTimers();
+      hideAllOverlays();
       DOM.levelDisplay.innerText = `LEVEL: ${currentLevel}`;
       switchView('start');
+    }
+
+    // ===== 要件2: レベル表示 + カットイン演出 =====
+    function showLevelIntro() {
+      currentState = 'levelIntro';
+      clearAllTimers();
+      hideAllOverlays();
+      switchView('play'); // 背景にゲーム画面を見せる
+
+      const conf = LEVEL_CONFIGS[currentLevel];
+      DOM.levelDisplay.innerText = `LEVEL: ${currentLevel}`;
+      DOM.nullImage.src = conf.img;
+      DOM.nullImage.className = "absolute inset-0 object-cover w-full h-full opacity-40 filter contrast-125 saturate-0";
+      DOM.noiseOverlay.classList.add('hidden');
+      DOM.signalText.innerHTML = '';
+
+      // Phase 1: レベルテキスト表示 (2秒)
+      const ol = overlayLevelIntro();
+      const lt = levelIntroText();
+      ol.style.display = 'flex';
+      lt.className = 'text-4xl sm:text-5xl md:text-6xl font-bold tracking-[0.15em] text-white level-text-anim';
+      lt.innerText = `LEVEL ${currentLevel}`;
+
+      // Phase 2: カットイン演出 (レベルテキスト終了後)
+      timers.push(setTimeout(() => {
+        ol.style.display = 'none';
+        showCutIn();
+      }, 2000));
+    }
+
+    function showCutIn() {
+      currentState = 'cutIn';
+      const oc = overlayCutIn();
+      oc.style.display = 'flex';
+
+      // シネマバーイン
+      const barTop = cinemaBarTop();
+      const barBot = cinemaBarBottom();
+      barTop.className = 'cinema-bar cinema-bar-top cinema-bar-in';
+      barBot.className = 'cinema-bar cinema-bar-bottom cinema-bar-in';
+
+      // カットインテキスト
+      const cl = cutInLabel();
+      cl.className = 'text-3xl sm:text-4xl md:text-5xl font-bold tracking-widest cut-in-text';
+      cl.innerText = '[ OVERRIDE_SYNC ]';
+
+      // SE再生（alertを低音量で流用）
+      playSound('alert', 0.4);
+
+      // シネマバーアウト → ゲーム開始
+      timers.push(setTimeout(() => {
+        barTop.className = 'cinema-bar cinema-bar-top cinema-bar-out';
+        barBot.className = 'cinema-bar cinema-bar-bottom cinema-bar-out';
+      }, 1000));
+
+      timers.push(setTimeout(() => {
+        oc.style.display = 'none';
+        startLevel();
+      }, 1400));
+    }
+
+    // ===== 要件3: WIN演出 =====
+    function showWinCutIn(reactTime) {
+      currentState = 'winCutIn';
+      hideAllOverlays();
+
+      const ow = overlayWin();
+      ow.style.display = 'flex';
+
+      // フラッシュ
+      const wf = winFlash();
+      wf.className = 'absolute inset-0 bg-cyan-400 win-flash-bg';
+
+      // WINテキスト
+      const wt = winText();
+      wt.className = 'text-6xl sm:text-7xl md:text-8xl font-bold tracking-[0.2em] win-text-anim';
+      wt.innerText = 'WIN';
+
+      playSound('win', 0.8);
+
+      // 演出終了後、結果画面へ
+      timers.push(setTimeout(() => {
+        ow.style.display = 'none';
+        showWinResult(reactTime);
+      }, 1500));
     }
 
     function startLevel() {
@@ -394,10 +640,11 @@
     function handleTap() {
       if (currentState === 'start') {
         unlockAudio(); // 初回タップで音声を確実にアンロック
-        startLevel();
+        showLevelIntro(); // 演出を経由してゲーム開始
         return;
       }
       if (currentState === 'result') return;
+      if (currentState === 'levelIntro' || currentState === 'cutIn' || currentState === 'winCutIn') return; // 演出中はタップ無視
 
       if (currentState === 'ready') { lose('FLYING'); return; }
       if (currentState === 'fake') { lose('FAKE'); return; }
@@ -412,10 +659,20 @@
     }
 
     function win(reactTime) {
-      currentState = 'result';
       clearAllTimers();
-
       playSound('slash', 0.8);
+
+      // レベル5（最終ステージ）はWIN演出なしで即結果表示
+      if (currentLevel === 5) {
+        showWinResult(reactTime);
+      } else {
+        // WIN演出カットイン → 結果画面
+        showWinCutIn(reactTime);
+      }
+    }
+
+    function showWinResult(reactTime) {
+      currentState = 'result';
 
       DOM.flashOverlay.classList.remove('flash-red', 'flash-gold');
       void DOM.flashOverlay.offsetWidth;
@@ -423,7 +680,8 @@
       if (currentLevel === 5) {
         DOM.flashOverlay.classList.add('flash-gold');
         DOM.resultTitle.innerText = "SYSTEM_DOWN";
-        DOM.resultTitle.className = "text-4xl mb-4 font-bold tracking-widest text-[#ffd700] text-shadow-[0_0_20px_#ffd700] py-2 overflow-visible leading-normal";
+        DOM.resultTitle.className = "text-4xl mb-4 font-bold tracking-widest text-[#ffd700] py-2 overflow-visible leading-normal";
+        DOM.resultTitle.style.textShadow = '0 0 8px #ffd700, 0 0 16px rgba(255,215,0,0.5)';
         DOM.resultMessage.innerHTML = "……あ、あなたの勝ちです、マスター…";
         DOM.resultMessage.className = "text-lg mb-6 leading-relaxed text-gray-100 font-bold drop-shadow-md z-20 mt-2";
         DOM.resultImage.src = "assets/clear.png";
@@ -440,6 +698,7 @@
 
         DOM.resultTitle.innerText = "SYNC_VERIFIED";
         DOM.resultTitle.className = "text-3xl mb-4 font-bold tracking-widest neon-blue py-2 overflow-visible leading-normal";
+        DOM.resultTitle.style.textShadow = '';
 
         let lvMsg = "...チッ、運がいいですね。";
         if (currentLevel === 1) lvMsg = "...チッ、まぐれですね。";
@@ -465,7 +724,7 @@
         DOM.nextButton.onclick = (e) => {
           e.stopPropagation();
           currentLevel++;
-          startLevel();
+          showLevelIntro(); // レベル表示演出を経由
         };
       }
       switchView('result');
