@@ -24,18 +24,21 @@
       color: #00f3ff;
       text-shadow: 0 0 3px #00f3ff, 0 0 6px rgba(0,243,255,0.5);
       -webkit-text-stroke: 0.3px #00f3ff;
+      paint-order: stroke fill;
     }
 
     .neon-red {
       color: #ff003c;
       text-shadow: 0 0 3px #ff003c, 0 0 6px rgba(255,0,60,0.5);
       -webkit-text-stroke: 0.3px #ff003c;
+      paint-order: stroke fill;
     }
 
     .neon-yellow {
       color: #ffcc00;
       text-shadow: 0 0 3px #ffcc00, 0 0 6px rgba(255,204,0,0.5);
       -webkit-text-stroke: 0.3px #ffcc00;
+      paint-order: stroke fill;
     }
 
     .glitch {
@@ -118,13 +121,14 @@
 
     /* === レベル表示演出 === */
     @keyframes levelTextIn {
-      0% { opacity: 0; transform: scale(0.5); letter-spacing: 0.5em; }
-      30% { opacity: 1; transform: scale(1.05); letter-spacing: 0.15em; }
-      70% { opacity: 1; transform: scale(1); letter-spacing: 0.15em; }
-      100% { opacity: 0; transform: scale(1.2); letter-spacing: 0.3em; }
+      0% { opacity: 0; transform: scale(0.5) translateZ(0); letter-spacing: 0.5em; }
+      30% { opacity: 1; transform: scale(1.05) translateZ(0); letter-spacing: 0.15em; }
+      70% { opacity: 1; transform: scale(1) translateZ(0); letter-spacing: 0.15em; }
+      100% { opacity: 0; transform: scale(1.2) translateZ(0); letter-spacing: 0.3em; }
     }
     .level-text-anim {
       animation: levelTextIn 2s ease-in-out forwards;
+      will-change: transform, opacity, letter-spacing;
     }
 
     /* === シネマバー（上下黒帯） === */
@@ -154,26 +158,28 @@
 
     /* === カットインフラッシュ === */
     @keyframes cutInFlash {
-      0% { opacity: 0; transform: scaleX(0); }
-      15% { opacity: 1; transform: scaleX(1); }
-      70% { opacity: 1; transform: scaleX(1); }
-      100% { opacity: 0; transform: scaleX(1.1); }
+      0% { opacity: 0; transform: scaleX(0) translateZ(0); }
+      15% { opacity: 1; transform: scaleX(1) translateZ(0); }
+      70% { opacity: 1; transform: scaleX(1) translateZ(0); }
+      100% { opacity: 0; transform: scaleX(1.1) translateZ(0); }
     }
     .cut-in-text {
       animation: cutInFlash 1.2s ease-out forwards;
       transform-origin: center;
+      will-change: transform, opacity;
     }
 
     /* === WIN演出 === */
     @keyframes winSlash {
-      0% { opacity: 0; transform: scale(3) rotate(-10deg); }
-      20% { opacity: 1; transform: scale(1) rotate(0deg); }
-      50% { opacity: 1; transform: scale(1) rotate(0deg); }
-      80% { opacity: 1; transform: scale(1.1) rotate(2deg); }
-      100% { opacity: 0; transform: scale(1.5) rotate(5deg); }
+      0% { opacity: 0; transform: scale(3) rotate(-10deg) translateZ(0); }
+      20% { opacity: 1; transform: scale(1) rotate(0deg) translateZ(0); }
+      50% { opacity: 1; transform: scale(1) rotate(0deg) translateZ(0); }
+      80% { opacity: 1; transform: scale(1.1) rotate(2deg) translateZ(0); }
+      100% { opacity: 0; transform: scale(1.5) rotate(5deg) translateZ(0); }
     }
     .win-text-anim {
       animation: winSlash 1.5s ease-out forwards;
+      will-change: transform, opacity;
     }
 
     @keyframes winFlashBg {
@@ -207,14 +213,14 @@
   <div id="overlay-cutIn" class="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none" style="display:none;">
     <div id="cinema-bar-top" class="cinema-bar cinema-bar-top"></div>
     <div id="cinema-bar-bottom" class="cinema-bar cinema-bar-bottom"></div>
-    <div id="cut-in-label" class="text-3xl sm:text-4xl md:text-5xl font-bold tracking-widest" style="color: #ff003c; text-shadow: 0 0 8px rgba(255,0,60,0.7), 0 0 25px rgba(255,0,60,0.3); -webkit-text-stroke: 0.5px #ff003c;">
+    <div id="cut-in-label" class="text-3xl sm:text-4xl md:text-5xl font-bold tracking-widest" style="color: #ff003c; text-shadow: 0 0 8px rgba(255,0,60,0.7), 0 0 25px rgba(255,0,60,0.3); -webkit-text-stroke: 0.5px #ff003c; paint-order: stroke fill;">
     </div>
   </div>
 
   <!-- WIN演出オーバーレイ -->
   <div id="overlay-win" class="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none" style="display:none;">
     <div id="win-flash" class="absolute inset-0 bg-cyan-400 opacity-0"></div>
-    <div id="win-text" class="text-6xl sm:text-7xl md:text-8xl font-bold tracking-[0.2em]" style="color: #00f3ff; text-shadow: 0 0 10px #00f3ff, 0 0 30px rgba(0,243,255,0.5); -webkit-text-stroke: 1px #00f3ff;">
+    <div id="win-text" class="text-6xl sm:text-7xl md:text-8xl font-bold tracking-[0.2em]" style="color: #00f3ff; text-shadow: 0 0 10px #00f3ff, 0 0 30px rgba(0,243,255,0.5); -webkit-text-stroke: 1px #00f3ff; paint-order: stroke fill;">
     </div>
   </div>
 
@@ -402,11 +408,11 @@
     }
 
     const LEVEL_CONFIGS = {
-      1: { limit: 400, fakeMode: 'none', baseWaitMin: 2000, baseWaitMax: 4000, img: 'assets/lv1.png' },
-      2: { limit: 300, fakeMode: 'low', baseWaitMin: 2000, baseWaitMax: 5000, img: 'assets/lv2.png' },
-      3: { limit: 220, fakeMode: 'mid', baseWaitMin: 2000, baseWaitMax: 6000, img: 'assets/lv3.png' },
-      4: { limit: 160, fakeMode: 'high', baseWaitMin: 2500, baseWaitMax: 6500, img: 'assets/lv4.png' },
-      5: { limit: 120, fakeMode: 'extreme', baseWaitMin: 3000, baseWaitMax: 7000, img: 'assets/lv5.png' }
+      1: { limit: 400, fakeMode: 'none', baseWaitMin: 1500, baseWaitMax: 5500, img: 'assets/lv1.png' },
+      2: { limit: 300, fakeMode: 'low', baseWaitMin: 2000, baseWaitMax: 6000, img: 'assets/lv2.png' },
+      3: { limit: 220, fakeMode: 'mid', baseWaitMin: 2000, baseWaitMax: 7000, img: 'assets/lv3.png' },
+      4: { limit: 160, fakeMode: 'high', baseWaitMin: 2500, baseWaitMax: 7500, img: 'assets/lv4.png' },
+      5: { limit: 120, fakeMode: 'extreme', baseWaitMin: 3000, baseWaitMax: 8000, img: 'assets/lv5.png' }
     };
 
     const DOM = {
@@ -564,13 +570,14 @@
 
       if (conf.fakeMode === 'extreme') {
         // レベル5専用エグいタイムライン
-        totalWait = 5000;
-        timeline.push({ time: 1500, type: 'fake', text: '[ NORMAL ]', color: 'neon-blue' });
-        timeline.push({ time: 2800, type: 'fake', text: '[ WARNING ]', color: 'neon-yellow' });
-        timeline.push({ time: 3600, type: 'fake', text: '[ ERROR ]', color: 'text-red-900 opacity-80' });
-        timeline.push({ time: 4200, type: 'fake', text: '[ OV3R... ]', color: 'neon-blue opacity-50 font-bold' });
-        timeline.push({ time: 4800, type: 'fake', text: '[ !!! ]', color: 'neon-red text-6xl' }); // 直前フェイク
-        timeline.push({ time: 5000, type: 'go' });
+        let offset = Math.floor(Math.random() * 2500) - 500; // -500 ~ +2000
+        totalWait = 5000 + offset;
+        timeline.push({ time: 1500 + offset * 0.2, type: 'fake', text: '[ NORMAL ]', color: 'neon-blue' });
+        timeline.push({ time: 2800 + offset * 0.4, type: 'fake', text: '[ WARNING ]', color: 'neon-yellow' });
+        timeline.push({ time: 3600 + offset * 0.6, type: 'fake', text: '[ ERROR ]', color: 'text-red-900 opacity-80' });
+        timeline.push({ time: 4200 + offset * 0.8, type: 'fake', text: '[ OV3R... ]', color: 'neon-blue opacity-50 font-bold' });
+        timeline.push({ time: 4800 + offset * 0.95, type: 'fake', text: '[ !!! ]', color: 'neon-red text-6xl' }); // 直前フェイク
+        timeline.push({ time: totalWait, type: 'go' });
       } else {
         let fakeCount = 0;
         if (conf.fakeMode === 'low' && Math.random() < 0.4) fakeCount = 1;
